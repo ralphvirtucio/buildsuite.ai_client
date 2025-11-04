@@ -120,3 +120,44 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Minimalist Custom Scrollbar */
+@layer utilities {
+  /* Webkit browsers (Chrome, Safari, Edge) */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: oklch(0.708 0 0 / 0.3);
+    border-radius: 3px;
+    transition: background 0.2s ease;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.708 0 0 / 0.5);
+  }
+
+  /* Dark mode */
+  .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: oklch(0.556 0 0 / 0.4);
+  }
+
+  .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.556 0 0 / 0.6);
+  }
+
+  /* Firefox */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0.708 0 0 / 0.3) transparent;
+  }
+
+  .dark .custom-scrollbar {
+    scrollbar-color: oklch(0.556 0 0 / 0.4) transparent;
+  }
+}

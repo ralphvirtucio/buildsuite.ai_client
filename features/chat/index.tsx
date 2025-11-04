@@ -224,25 +224,43 @@ export default function Chat() {
       sendMutation.mutate(payload, {
         onSuccess: (data) => {
           const assistantText = data.result ?? data.message ?? 'No response';
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: crypto.randomUUID?.() ?? `${Date.now()}-a`,
-              role: 'assistant',
-              content: assistantText,
-            },
-          ]);
+          // Update existing empty assistant message if it exists, otherwise add new one
+          setMessages((prev) => {
+            const lastMsg = prev[prev.length - 1];
+            // If last message is an empty assistant placeholder, update it
+            if (lastMsg && lastMsg.role === 'assistant' && !lastMsg.content) {
+              const updated = [...prev];
+              updated[updated.length - 1] = {
+                ...lastMsg,
+                content: assistantText,
+              };
+              return updated;
+            }
+            // Otherwise add new message
+            return [
+              ...prev,
+              {
+                id: crypto.randomUUID?.() ?? `${Date.now()}-a`,
+                role: 'assistant',
+                content: assistantText,
+              },
+            ];
+          });
         },
         onError: (err2: ApiError) => {
           const msg = err2?.message || 'Something went wrong';
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: crypto.randomUUID?.() ?? `${Date.now()}-e`,
-              role: 'system',
-              content: `Error: ${msg}`,
-            },
-          ]);
+          // Remove empty placeholder if it exists, then add error message
+          setMessages((prev) => {
+            const filtered = prev.filter((m) => !(m.role === 'assistant' && !m.content));
+            return [
+              ...filtered,
+              {
+                id: crypto.randomUUID?.() ?? `${Date.now()}-e`,
+                role: 'system',
+                content: `Error: ${msg}`,
+              },
+            ];
+          });
         },
       });
     });
@@ -265,11 +283,11 @@ export default function Chat() {
   }, [messages, isStreaming]);
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-4 py-8">
+    <div className="mx-auto flex h-screen w-full max-w-3xl flex-col px-4 py-8">
       <div className="mb-4 flex w-full items-center justify-end">
         <ThemeToggle />
       </div>
-      <div className="flex flex-1 flex-col w-full">
+      <div className="flex flex-1 flex-col w-full overflow-hidden">
         {messages.length === 0 ? (
           <div className="flex flex-1 items-center justify-center px-4">
             <div className="text-center space-y-6 max-w-2xl w-full">
@@ -333,45 +351,59 @@ export default function Chat() {
             </div>
           </div>
         ) : (
-          <div ref={listRef} className="flex-1 overflow-y-auto px-1 pb-4">
+          <div ref={listRef} className="flex-1 overflow-y-scroll overflow-x-hidden px-1 pb-4 custom-scrollbar">
             <div className="space-y-4">
-              {messages.map((m) => (
-                <div
-                  key={m.id}
-                  className={`
-                    ${m.role === 'user' ? 'flex justify-end' : 'flex justify-start'}
-                    animate-in slide-in-from-bottom-2 fade-in-0 duration-300
-                  `}
-                >
-                  <div className="group relative max-w-[85%]">
-                    <div
-                      className={
-                        m.role === 'user'
-                          ? 'rounded-md bg-primary text-primary-foreground px-4 py-2'
-                          : m.role === 'assistant'
-                          ? 'rounded-md border bg-background px-4 py-2'
-                          : 'rounded-md bg-muted text-muted-foreground px-4 py-2'
-                      }
-                    >
-                      <div className="whitespace-pre-wrap text-sm leading-relaxed">{m.content}</div>
+              {messages
+                .filter((m) => {
+                  // Always filter out empty assistant messages - typing indicator shows instead
+                  if (m.role === 'assistant' && !m.content) {
+                    return false;
+                  }
+                  return true;
+                })
+                .map((m) => (
+                  <div
+                    key={m.id}
+                    className={`
+                      ${m.role === 'user' ? 'flex justify-end' : 'flex justify-start'}
+                      animate-in slide-in-from-bottom-2 fade-in-0 duration-300
+                    `}
+                  >
+                    <div className="group relative max-w-[85%]">
+                      <div
+                        className={
+                          m.role === 'user'
+                            ? 'rounded-md bg-primary text-primary-foreground px-4 py-2'
+                            : m.role === 'assistant'
+                            ? 'rounded-md border bg-background px-4 py-2'
+                            : 'rounded-md bg-muted text-muted-foreground px-4 py-2'
+                        }
+                      >
+                        <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                          {m.content}
+                        </div>
 
-                      {/* Timestamp */}
-                      <div className="text-xs text-muted-foreground mt-1 opacity-60">
-                        {new Date().toLocaleTimeString('en-US', {
-                          hour: 'numeric',
-                          minute: '2-digit',
-                        })}
-                      </div>
+                        {/* Timestamp */}
+                        <div className={`text-xs mt-1 opacity-70 ${
+                          m.role === 'user'
+                            ? 'text-primary-foreground'
+                            : 'text-muted-foreground'
+                        }`}>
+                          {new Date().toLocaleTimeString('en-US', {
+                            hour: 'numeric',
+                            minute: '2-digit',
+                          })}
+                        </div>
 
-                      {/* Tool and Agent Calls - Better Badges */}
-                      {m.metadata &&
-                      (m.metadata.toolCalls?.length || m.metadata.agentCalls?.length) ? (
-                        <div className="mt-3 pt-3 border-t border-border/50">
-                          <div className="flex flex-wrap gap-1.5">
-                            {m.metadata.toolCalls?.map((tool, idx) => (
-                              <span
-                                key={`tool-${idx}`}
-                                className={`
+                        {/* Tool and Agent Calls - Better Badges */}
+                        {m.metadata &&
+                        (m.metadata.toolCalls?.length || m.metadata.agentCalls?.length) ? (
+                          <div className="mt-3 pt-3 border-t border-border/50">
+                            <div className="flex flex-wrap gap-1.5">
+                              {m.metadata.toolCalls?.map((tool, idx) => (
+                                <span
+                                  key={`tool-${idx}`}
+                                  className={`
                                   inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium
                                   ${
                                     tool.status === 'completed'
@@ -379,16 +411,16 @@ export default function Chat() {
                                       : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
                                   }
                                 `}
-                              >
-                                <span className="text-xs">🔧</span>
-                                <span>{tool.name}</span>
-                                {tool.status === 'completed' ? '✓' : '✗'}
-                              </span>
-                            ))}
-                            {m.metadata.agentCalls?.map((agent, idx) => (
-                              <span
-                                key={`agent-${idx}`}
-                                className={`
+                                >
+                                  <span className="text-xs">🔧</span>
+                                  <span>{tool.name}</span>
+                                  {tool.status === 'completed' ? '✓' : '✗'}
+                                </span>
+                              ))}
+                              {m.metadata.agentCalls?.map((agent, idx) => (
+                                <span
+                                  key={`agent-${idx}`}
+                                  className={`
                                   inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium
                                   ${
                                     agent.status === 'completed'
@@ -396,22 +428,21 @@ export default function Chat() {
                                       : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
                                   }
                                 `}
-                              >
-                                <span className="text-xs">🤖</span>
-                                <span>{agent.name}</span>
-                                {agent.status === 'completed' ? '✓' : '✗'}
-                              </span>
-                            ))}
+                                >
+                                  <span className="text-xs">🤖</span>
+                                  <span>{agent.name}</span>
+                                  {agent.status === 'completed' ? '✓' : '✗'}
+                                </span>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      ) : null}
-                    </div>
+                        ) : null}
+                      </div>
 
-                    {/* Copy button - only show for assistant messages */}
-                    {m.role === 'assistant' && m.content && (
+                      {/* Copy button - only show for assistant messages */}
                       <button
                         onClick={() => copyToClipboard(m.content, m.id)}
-                        className="absolute -top-2 -right-2 p-1.5 rounded-md bg-background border shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute -top-2 -right-2 p-1.5 rounded-md bg-background border shadow-sm opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                         aria-label="Copy message"
                       >
                         {copiedId === m.id ? (
@@ -420,10 +451,9 @@ export default function Chat() {
                           <Copy className="h-3 w-3" />
                         )}
                       </button>
-                    )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
               {(isStreaming || sendMutation.isPending) && (
                 <div className="flex justify-start animate-in slide-in-from-bottom-2 fade-in-0 duration-300">
                   <div className="max-w-[85%] rounded-md border bg-background px-4 py-3">
