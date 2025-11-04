@@ -6,7 +6,6 @@
   "devCommand": "pnpm dev",
   "regions": ["iad1"],
   "env": {
-    "OPENAI_API_KEY": "@openai_api_key",
     "NEXT_PUBLIC_API_ENDPOINT_URL": "@api_endpoint_url"
   },
   "headers": [
