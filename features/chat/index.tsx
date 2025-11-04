@@ -7,7 +7,7 @@ import { Paperclip, Send, Bot, Copy, Check } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSendChatMessageMutation } from './api';
 import axiosInstance from '@/lib/axios';
-import type { ChatMessage } from './types';
+import type { ApiError, ChatMessage } from './types';
 
 function getOrCreateSessionId(): string {
   // Prefer persisted session to retain chat context across reloads
@@ -27,7 +27,6 @@ export default function Chat() {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
-  const [initialized, setInitialized] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const sessionId = useMemo(() => getOrCreateSessionId(), []);
   // Hardcoded user for demo/presentation
@@ -36,46 +35,8 @@ export default function Chat() {
 
   const sendMutation = useSendChatMessageMutation();
 
-  // Initialize chat with Kairo greeting
-  useEffect(() => {
-    if (!initialized && messages.length === 0) {
-      setInitialized(true);
-      setIsStreaming(true);
-
-      const initPayload = {
-        message: '',
-        session_id: sessionId,
-        user_id: userId,
-        conversation_history: [],
-        init: true,
-      };
-
-      sendStream(initPayload).catch((err) => {
-        console.warn('Init stream failed, falling back to non-streaming', err);
-        setIsStreaming(false);
-        sendMutation.mutate(
-          { ...initPayload, stream: false },
-          {
-            onSuccess: (data) => {
-              const assistantText =
-                data.result ?? data.message ?? 'Hello! How can I help you today?';
-              setMessages([
-                {
-                  id: crypto.randomUUID?.() ?? `${Date.now()}-init`,
-                  role: 'assistant',
-                  content: assistantText,
-                },
-              ]);
-            },
-            onError: (err2: any) => {
-              console.error('Init failed:', err2);
-              // Silently fail - user can still start conversation
-            },
-          },
-        );
-      });
-    }
-  }, [initialized, messages.length, sessionId, userId]);
+  // No auto-initialization - user must interact first
+  // Welcome screen stays visible until user clicks a prompt or sends a message
 
   async function sendStream(payload: {
     message: string;
@@ -237,10 +198,9 @@ export default function Chat() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const text = input.trim();
-    if (!text) return;
+  // Helper function to send a message programmatically
+  const sendMessage = (text: string) => {
+    if (!text.trim()) return;
 
     // append user message locally
     setMessages((prev) => [
@@ -248,14 +208,12 @@ export default function Chat() {
       { id: crypto.randomUUID?.() ?? `${Date.now()}-u`, role: 'user', content: text },
     ]);
 
-    // TODO: supply real user_id from auth/session when available
-    // TODO: refine conversation_history item shape once backend specifies
     const payload = {
       message: text,
       session_id: sessionId,
       user_id: userId,
       conversation_history: messages.map((m) => ({ role: m.role, content: m.content })),
-      stream: false, // TODO: implement streaming UX
+      stream: false,
     };
 
     // Prefer streaming; fallback to non-stream mutation if it fails
@@ -275,7 +233,7 @@ export default function Chat() {
             },
           ]);
         },
-        onError: (err2: any) => {
+        onError: (err2: ApiError) => {
           const msg = err2?.message || 'Something went wrong';
           setMessages((prev) => [
             ...prev,
@@ -288,7 +246,14 @@ export default function Chat() {
         },
       });
     });
+  };
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const text = input.trim();
+    if (!text) return;
+
+    sendMessage(text);
     setInput('');
   };
 
@@ -326,8 +291,9 @@ export default function Chat() {
               {/* Suggested Prompts */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-4">
                 <button
-                  onClick={() => setInput('Show me recent leads from this week')}
+                  onClick={() => sendMessage('Show me recent leads from this week')}
                   className="p-4 text-left rounded-lg border border-border hover:border-primary hover:bg-accent transition-colors"
+                  disabled={isStreaming}
                 >
                   <div className="font-medium text-sm">📊 Show recent leads</div>
                   <div className="text-xs text-muted-foreground mt-1">
@@ -335,8 +301,9 @@ export default function Chat() {
                   </div>
                 </button>
                 <button
-                  onClick={() => setInput('Check my schedule for today')}
+                  onClick={() => sendMessage('Check my schedule for today')}
                   className="p-4 text-left rounded-lg border border-border hover:border-primary hover:bg-accent transition-colors"
+                  disabled={isStreaming}
                 >
                   <div className="font-medium text-sm">📅 Check my schedule</div>
                   <div className="text-xs text-muted-foreground mt-1">
@@ -344,15 +311,17 @@ export default function Chat() {
                   </div>
                 </button>
                 <button
-                  onClick={() => setInput('Get updates on active projects')}
+                  onClick={() => sendMessage('Get updates on active projects')}
                   className="p-4 text-left rounded-lg border border-border hover:border-primary hover:bg-accent transition-colors"
+                  disabled={isStreaming}
                 >
                   <div className="font-medium text-sm">💼 Get project updates</div>
                   <div className="text-xs text-muted-foreground mt-1">Latest project status</div>
                 </button>
                 <button
-                  onClick={() => setInput('Help me draft a message to a client')}
+                  onClick={() => sendMessage('Help me draft a message to a client')}
                   className="p-4 text-left rounded-lg border border-border hover:border-primary hover:bg-accent transition-colors"
+                  disabled={isStreaming}
                 >
                   <div className="font-medium text-sm">📧 Draft a message</div>
                   <div className="text-xs text-muted-foreground mt-1">Create email or text</div>
