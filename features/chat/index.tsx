@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSendChatMessageMutation } from './api';
 import axiosInstance from '@/lib/axios';
 import type { ApiError, ChatMessage } from './types';
+import { v4 as uuidv4 } from 'uuid';
 
 function getOrCreateSessionId(): string {
   // Prefer persisted session to retain chat context across reloads
@@ -28,9 +29,10 @@ export default function Chat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [progressMessage, setProgressMessage] = useState<string>('Kairo is thinking...');
   const sessionId = useMemo(() => getOrCreateSessionId(), []);
   // Hardcoded user for demo/presentation
-  const userId = 'demo_user_00000000-0000-4000-8000-000000000000'; // TODO: replace with real auth user id
+  const userId = uuidv4(); // TODO: replace with real auth user id
   const listRef = useRef<HTMLDivElement | null>(null);
 
   const sendMutation = useSendChatMessageMutation();
@@ -116,33 +118,50 @@ export default function Chat() {
             if (!payloadStr) continue;
             try {
               const evt = JSON.parse(payloadStr) as {
-                type: 'start' | 'tool' | 'agent' | 'delta' | 'final' | 'error';
+                type: 'start' | 'thinking' | 'tool' | 'agent' | 'delta' | 'final' | 'error';
                 session_id?: string;
                 name?: string;
                 status?: 'completed' | 'failed';
                 error?: string;
                 text?: string;
+                message?: string;
               };
 
               if (evt.type === 'start') {
                 console.log('Chat session started:', evt.session_id);
+                setProgressMessage('Kairo is thinking...');
+              } else if (evt.type === 'thinking') {
+                // Show thinking status with custom message
+                const thinkingMsg = evt.message || 'Kairo is analyzing...';
+                setProgressMessage(thinkingMsg);
+                console.log('Kairo thinking:', thinkingMsg);
               } else if (evt.type === 'tool') {
-                // Track tool call
+                // Track tool call and update progress message
                 const toolCall = {
                   name: evt.name || 'unknown',
                   status: evt.status || 'completed',
                   error: evt.error,
                 };
                 toolCalls.push(toolCall);
+
+                // Update progress message with friendly text
+                if (evt.message) {
+                  setProgressMessage(evt.message);
+                }
                 console.log(`Tool ${evt.name}: ${evt.status}`);
               } else if (evt.type === 'agent') {
-                // Track agent call
+                // Track agent call and update progress message
                 const agentCall = {
                   name: evt.name || 'unknown',
                   status: evt.status || 'completed',
                   error: evt.error,
                 };
                 agentCalls.push(agentCall);
+
+                // Update progress message with friendly text
+                if (evt.message) {
+                  setProgressMessage(evt.message);
+                }
                 console.log(`Agent ${evt.name}: ${evt.status}`);
               } else if (evt.type === 'delta') {
                 // Append text delta to assistant message
@@ -164,6 +183,7 @@ export default function Chat() {
                 // Final message received
                 console.log('Chat completed:', evt.text);
                 setIsStreaming(false);
+                setProgressMessage('Kairo is thinking...'); // Reset for next message
                 // Update with final metadata
                 setMessages((prev) => {
                   const next = [...prev];
@@ -183,6 +203,7 @@ export default function Chat() {
             } catch (e) {
               console.error('SSE parse error', e);
               setIsStreaming(false);
+              setProgressMessage('Kairo is thinking...'); // Reset on error
               throw e;
             }
           }
@@ -351,7 +372,10 @@ export default function Chat() {
             </div>
           </div>
         ) : (
-          <div ref={listRef} className="flex-1 overflow-y-scroll overflow-x-hidden px-1 pb-4 custom-scrollbar">
+          <div
+            ref={listRef}
+            className="flex-1 overflow-y-scroll overflow-x-hidden px-1 pb-4 custom-scrollbar"
+          >
             <div className="space-y-4">
               {messages
                 .filter((m) => {
@@ -384,11 +408,11 @@ export default function Chat() {
                         </div>
 
                         {/* Timestamp */}
-                        <div className={`text-xs mt-1 opacity-70 ${
-                          m.role === 'user'
-                            ? 'text-primary-foreground'
-                            : 'text-muted-foreground'
-                        }`}>
+                        <div
+                          className={`text-xs mt-1 opacity-70 ${
+                            m.role === 'user' ? 'text-primary-foreground' : 'text-muted-foreground'
+                          }`}
+                        >
                           {new Date().toLocaleTimeString('en-US', {
                             hour: 'numeric',
                             minute: '2-digit',
@@ -463,7 +487,7 @@ export default function Chat() {
                         <div className="h-2 w-2 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]"></div>
                         <div className="h-2 w-2 bg-primary rounded-full animate-bounce"></div>
                       </div>
-                      <span className="text-sm text-muted-foreground">Kairo is thinking...</span>
+                      <span className="text-sm text-muted-foreground">{progressMessage}</span>
                     </div>
                   </div>
                 </div>
