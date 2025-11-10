@@ -6,8 +6,11 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { Paperclip, Send, Bot, Copy, Check } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSendChatMessageMutation } from './api';
+import { useSession } from '../auth/hooks';
+import { StarterPrompts } from './components/starter-prompts';
 import axiosInstance from '@/lib/axios';
 import type { ApiError, ChatMessage } from './types';
+import type { SessionData } from '../auth/types';
 import { v4 as uuidv4 } from 'uuid';
 
 function getOrCreateSessionId(): string {
@@ -24,6 +27,59 @@ function getOrCreateSessionId(): string {
   return id;
 }
 
+/**
+ * Get time-aware greeting based on user's timezone
+ */
+function getTimeGreeting(timezone?: string): string {
+  try {
+    if (!timezone) return 'Hello';
+
+    const now = new Date();
+    const timeString = now.toLocaleString('en-US', {
+      timeZone: timezone,
+      hour: 'numeric',
+      hour12: false,
+    });
+
+    const hour = parseInt(timeString.split(',')[0] || '12');
+
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
+  } catch {
+    return 'Hello'; // Fallback if timezone is invalid
+  }
+}
+
+/**
+ * Generate personalized welcome message from Kairo
+ */
+function generateWelcomeMessage(sessionData?: SessionData): string {
+  if (!sessionData) {
+    return `Hi there! 👋
+
+I'm Kairo, your AI assistant. How can I help you today?`;
+  }
+
+  const timeGreeting = getTimeGreeting(sessionData.timezone);
+  const name = sessionData.firstName || 'there';
+  const location =
+    sessionData.city && sessionData.state ? ` from ${sessionData.city}, ${sessionData.state}` : '';
+
+  return `${timeGreeting}, ${name}! 👋
+
+Welcome to BuildSuite AI${location}.
+
+I'm Kairo, your AI assistant for ${sessionData.companyName}. I can help you with:
+• Managing leads and contacts
+• Scheduling and appointments
+• Creating estimates and quotes
+• Project updates and workflows
+• Marketing and communications
+
+What can I help you with today?`;
+}
+
 export default function Chat() {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -34,11 +90,28 @@ export default function Chat() {
   // Hardcoded user for demo/presentation
   const userId = uuidv4(); // TODO: replace with real auth user id
   const listRef = useRef<HTMLDivElement | null>(null);
+  const hasShownWelcome = useRef(false); // Track if welcome message was shown
+
+  // Fetch session data from backend for personalization
+  const { data: sessionData, isLoading: sessionLoading } = useSession(sessionId);
 
   const sendMutation = useSendChatMessageMutation();
 
-  // No auto-initialization - user must interact first
-  // Welcome screen stays visible until user clicks a prompt or sends a message
+  // Auto-add welcome message from Kairo when session data loads
+  useEffect(() => {
+    if (sessionData && messages.length === 0 && !hasShownWelcome.current) {
+      hasShownWelcome.current = true;
+
+      const welcomeMsg: ChatMessage = {
+        id: 'welcome-' + Date.now(),
+        role: 'assistant',
+        content: generateWelcomeMessage(sessionData),
+        timestamp: Date.now(),
+      };
+
+      setMessages([welcomeMsg]);
+    }
+  }, [sessionData, messages.length]);
 
   async function sendStream(payload: {
     message: string;
@@ -309,66 +382,17 @@ export default function Chat() {
         <ThemeToggle />
       </div>
       <div className="flex flex-1 flex-col w-full overflow-hidden">
-        {messages.length === 0 ? (
-          <div className="flex flex-1 items-center justify-center px-4">
-            <div className="text-center space-y-6 max-w-2xl w-full">
-              {/* Logo/Brand */}
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-lg">
-                <Bot className="h-8 w-8" />
+        {messages.length === 0 && sessionLoading ? (
+          /* Loading state - waiting for session data and welcome message */
+          <div className="flex flex-1 items-center justify-center">
+            <div className="text-center space-y-4">
+              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-lg">
+                <Bot className="h-10 w-10" />
               </div>
-
-              {/* Title */}
               <div className="space-y-2">
-                <h1 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
-                  BuildSuite AI
-                </h1>
-                <p className="text-lg text-muted-foreground">
-                  Your intelligent assistant for Alliance Contractors
-                </p>
+                <h1 className="text-3xl font-bold">BuildSuite AI</h1>
+                <p className="text-muted-foreground text-sm">Connecting...</p>
               </div>
-
-              {/* Suggested Prompts */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-4">
-                <button
-                  onClick={() => sendMessage('Show me recent leads from this week')}
-                  className="p-4 text-left rounded-lg border border-border hover:border-primary hover:bg-accent transition-colors"
-                  disabled={isStreaming}
-                >
-                  <div className="font-medium text-sm">📊 Show recent leads</div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    View leads from this week
-                  </div>
-                </button>
-                <button
-                  onClick={() => sendMessage('Check my schedule for today')}
-                  className="p-4 text-left rounded-lg border border-border hover:border-primary hover:bg-accent transition-colors"
-                  disabled={isStreaming}
-                >
-                  <div className="font-medium text-sm">📅 Check my schedule</div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    See upcoming appointments
-                  </div>
-                </button>
-                <button
-                  onClick={() => sendMessage('Get updates on active projects')}
-                  className="p-4 text-left rounded-lg border border-border hover:border-primary hover:bg-accent transition-colors"
-                  disabled={isStreaming}
-                >
-                  <div className="font-medium text-sm">💼 Get project updates</div>
-                  <div className="text-xs text-muted-foreground mt-1">Latest project status</div>
-                </button>
-                <button
-                  onClick={() => sendMessage('Help me draft a message to a client')}
-                  className="p-4 text-left rounded-lg border border-border hover:border-primary hover:bg-accent transition-colors"
-                  disabled={isStreaming}
-                >
-                  <div className="font-medium text-sm">📧 Draft a message</div>
-                  <div className="text-xs text-muted-foreground mt-1">Create email or text</div>
-                </button>
-              </div>
-
-              {/* Powered by */}
-              <p className="text-xs text-muted-foreground pt-4">Powered by Kairo AI</p>
             </div>
           </div>
         ) : (
@@ -495,6 +519,12 @@ export default function Chat() {
             </div>
           </div>
         )}
+
+        {/* Starter Prompts - Always visible above input */}
+        {/* <StarterPrompts
+          onPromptClick={sendMessage}
+          isCollapsed={messages.length > 0}
+        /> */}
 
         <div className="sticky bottom-0 w-full pt-3 bg-gradient-to-t from-background via-background/95 to-transparent">
           <form
