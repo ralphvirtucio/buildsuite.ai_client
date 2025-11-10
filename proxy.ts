@@ -8,7 +8,7 @@ export function proxy(request: NextRequest) {
   }
 
   const sessionCookie = request.cookies.get('session_id');
-
+  console.log(request.cookies, 'FOR PROD');
   if (!sessionCookie) {
     return NextResponse.redirect(new URL('/unauthenticated', request.url));
   }
