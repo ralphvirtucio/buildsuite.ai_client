@@ -16,23 +16,19 @@ import type { SessionData } from './types';
  * }
  * ```
  */
-export function useSession(sessionId: string | null) {
+export function useSession() {
   return useQuery<SessionData>({
-    queryKey: ['session', sessionId],
+    queryKey: ['session'],
     queryFn: async () => {
-      if (!sessionId) {
-        throw new Error('No session ID provided');
+      // Call Next.js API route which reads cookie server-side
+      const res = await fetch('/api/session', { cache: 'no-store' });
+      if (!res.ok) {
+        throw new Error('Failed to load session');
       }
-
-      const response = await axiosInstance.get(`/auth/validate_session`, {
-        params: { session_id: sessionId },
-      });
-
-      return response.data;
+      return (await res.json()) as SessionData;
     },
-    enabled: !!sessionId, // Only run if sessionId exists
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-    retry: 1, // Only retry once on failure
-    refetchOnWindowFocus: false, // Don't refetch on window focus
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 }

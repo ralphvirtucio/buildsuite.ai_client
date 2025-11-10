@@ -10,7 +10,6 @@ import { useSession } from '../auth/hooks';
 import { StarterPrompts } from './components/starter-prompts';
 import axiosInstance from '@/lib/axios';
 import type { ApiError, ChatMessage } from './types';
-import type { SessionData } from '../auth/types';
 import { v4 as uuidv4 } from 'uuid';
 
 function getOrCreateSessionId(): string {
@@ -27,58 +26,7 @@ function getOrCreateSessionId(): string {
   return id;
 }
 
-/**
- * Get time-aware greeting based on user's timezone
- */
-function getTimeGreeting(timezone?: string): string {
-  try {
-    if (!timezone) return 'Hello';
-
-    const now = new Date();
-    const timeString = now.toLocaleString('en-US', {
-      timeZone: timezone,
-      hour: 'numeric',
-      hour12: false,
-    });
-
-    const hour = parseInt(timeString.split(',')[0] || '12');
-
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
-  } catch {
-    return 'Hello'; // Fallback if timezone is invalid
-  }
-}
-
-/**
- * Generate personalized welcome message from Kairo
- */
-function generateWelcomeMessage(sessionData?: SessionData): string {
-  if (!sessionData) {
-    return `Hi there! 👋
-
-I'm Kairo, your AI assistant. How can I help you today?`;
-  }
-
-  const timeGreeting = getTimeGreeting(sessionData.timezone);
-  const name = sessionData.firstName || 'there';
-  const location =
-    sessionData.city && sessionData.state ? ` from ${sessionData.city}, ${sessionData.state}` : '';
-
-  return `${timeGreeting}, ${name}! 👋
-
-Welcome to BuildSuite AI${location}.
-
-I'm Kairo, your AI assistant for ${sessionData.companyName}. I can help you with:
-• Managing leads and contacts
-• Scheduling and appointments
-• Creating estimates and quotes
-• Project updates and workflows
-• Marketing and communications
-
-What can I help you with today?`;
-}
+// Removed welcome message generation; chat starts clean without auto assistant text.
 
 export default function Chat() {
   const [input, setInput] = useState('');
@@ -90,28 +38,14 @@ export default function Chat() {
   // Hardcoded user for demo/presentation
   const userId = uuidv4(); // TODO: replace with real auth user id
   const listRef = useRef<HTMLDivElement | null>(null);
-  const hasShownWelcome = useRef(false); // Track if welcome message was shown
+  // No auto-injected welcome; messages start empty until user interacts
 
   // Fetch session data from backend for personalization
-  const { data: sessionData, isLoading: sessionLoading } = useSession(sessionId);
+  const { data: sessionData, isLoading: sessionLoading } = useSession();
 
   const sendMutation = useSendChatMessageMutation();
 
-  // Auto-add welcome message from Kairo when session data loads
-  useEffect(() => {
-    if (sessionData && messages.length === 0 && !hasShownWelcome.current) {
-      hasShownWelcome.current = true;
-
-      const welcomeMsg: ChatMessage = {
-        id: 'welcome-' + Date.now(),
-        role: 'assistant',
-        content: generateWelcomeMessage(sessionData),
-        timestamp: Date.now(),
-      };
-
-      setMessages([welcomeMsg]);
-    }
-  }, [sessionData, messages.length]);
+  // Removed auto-welcome effect to avoid pre-filling assistant message
 
   async function sendStream(payload: {
     message: string;
@@ -383,7 +317,7 @@ export default function Chat() {
       </div>
       <div className="flex flex-1 flex-col w-full overflow-hidden">
         {messages.length === 0 && sessionLoading ? (
-          /* Loading state - waiting for session data and welcome message */
+          /* Loading state - waiting for session data */
           <div className="flex flex-1 items-center justify-center">
             <div className="text-center space-y-4">
               <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-lg">
@@ -520,11 +454,8 @@ export default function Chat() {
           </div>
         )}
 
-        {/* Starter Prompts - Always visible above input */}
-        {/* <StarterPrompts
-          onPromptClick={sendMessage}
-          isCollapsed={messages.length > 0}
-        /> */}
+        {/* Starter Prompts - Visible above input */}
+        <StarterPrompts onPromptClick={sendMessage} />
 
         <div className="sticky bottom-0 w-full pt-3 bg-gradient-to-t from-background via-background/95 to-transparent">
           <form
@@ -536,7 +467,7 @@ export default function Chat() {
             </Button>
             <Input
               className="flex-1 border-0 bg-muted focus-visible:ring-1"
-              placeholder="Type your message…"
+              placeholder={`Ask me anything about ${sessionData?.companyName || 'BuildSuite'}...`}
               aria-label="Message"
               value={input}
               onChange={(e) => setInput(e.target.value)}
