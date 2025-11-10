@@ -78,12 +78,15 @@ const agentPrompts: AgentPrompt[] = [
  */
 export function PillPrompts({ onPromptClick }: PillPromptsProps) {
   const [openAgent, setOpenAgent] = useState<string | null>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
 
   // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (!openAgent) return;
+
+      const currentRef = dropdownRefs.current.get(openAgent);
+      if (currentRef && !currentRef.contains(event.target as Node)) {
         setOpenAgent(null);
       }
     }
@@ -107,7 +110,17 @@ export function PillPrompts({ onPromptClick }: PillPromptsProps) {
     <div className="relative border-t bg-background/60 pt-2 pb-1">
       <div className="flex flex-wrap gap-2 px-1">
         {agentPrompts.map((agentPrompt) => (
-          <div key={agentPrompt.agent} className="relative" ref={dropdownRef}>
+          <div
+            key={agentPrompt.agent}
+            className="relative"
+            ref={(el) => {
+              if (el) {
+                dropdownRefs.current.set(agentPrompt.agent, el);
+              } else {
+                dropdownRefs.current.delete(agentPrompt.agent);
+              }
+            }}
+          >
             {/* Pill Button */}
             <Button
               variant="outline"
