@@ -7,8 +7,8 @@ import { Paperclip, Send, Bot, Copy, Check } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSendChatMessageMutation } from './api';
 import { useSession } from '../auth/hooks';
-import { StarterPrompts } from './components/starter-prompts';
-import { WelcomeMessage } from './components/welcome-message';
+import { CapabilitiesCard } from './components/capabilities-card';
+import { PillPrompts } from './components/pill-prompts';
 import axiosInstance from '@/lib/axios';
 import type { ApiError, ChatMessage } from './types';
 import { v4 as uuidv4 } from 'uuid';
@@ -330,15 +330,15 @@ export default function Chat() {
               </div>
             </div>
           </div>
+        ) : messages.length === 0 ? (
+          /* Empty state - Show capabilities card */
+          <CapabilitiesCard />
         ) : (
           <div
             ref={listRef}
             className="flex-1 overflow-y-scroll overflow-x-hidden px-1 pb-4 custom-scrollbar"
           >
             <div className="space-y-4">
-              {/* Welcome Message - Shows only when no messages exist */}
-              {messages.length === 0 && <WelcomeMessage />}
-
               {messages
                 .filter((m) => {
                   // Always filter out empty assistant messages - typing indicator shows instead
@@ -458,10 +458,10 @@ export default function Chat() {
           </div>
         )}
 
-        {/* Starter Prompts - Visible above input */}
-        <StarterPrompts onPromptClick={sendMessage} />
+        {/* Pill Prompts - Always visible above input */}
+        <PillPrompts onPromptClick={sendMessage} />
 
-        <div className="sticky bottom-0 w-full pt-3 bg-gradient-to-t from-background via-background/95 to-transparent">
+        <div className="sticky bottom-0 w-full pt-2 bg-gradient-to-t from-background via-background/95 to-transparent">
           <form
             className="mx-auto flex w-full max-w-2xl items-end gap-2 px-1"
             onSubmit={handleSubmit}
