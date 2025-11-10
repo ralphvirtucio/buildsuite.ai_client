@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSendChatMessageMutation } from './api';
 import { useSession } from '../auth/hooks';
 import { StarterPrompts } from './components/starter-prompts';
+import { WelcomeMessage } from './components/welcome-message';
 import axiosInstance from '@/lib/axios';
 import type { ApiError, ChatMessage } from './types';
 import { v4 as uuidv4 } from 'uuid';
@@ -335,6 +336,9 @@ export default function Chat() {
             className="flex-1 overflow-y-scroll overflow-x-hidden px-1 pb-4 custom-scrollbar"
           >
             <div className="space-y-4">
+              {/* Welcome Message - Shows only when no messages exist */}
+              {messages.length === 0 && <WelcomeMessage />}
+
               {messages
                 .filter((m) => {
                   // Always filter out empty assistant messages - typing indicator shows instead
