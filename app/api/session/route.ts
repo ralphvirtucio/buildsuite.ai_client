@@ -21,7 +21,8 @@ export async function GET() {
     }
 
     const data = await res.json();
-    return NextResponse.json(data);
+    // Include server-issued sessionId so client can use the correct ID
+    return NextResponse.json({ ...data, sessionId });
   } catch (err) {
     return NextResponse.json({ error: 'Failed to validate session' }, { status: 500 });
   }

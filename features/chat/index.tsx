@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Paperclip, Send, Bot, Copy, Check } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSendChatMessageMutation } from './api';
 import { useSession } from '../auth/hooks';
 import { CapabilitiesCard } from './components/capabilities-card';
@@ -13,19 +13,7 @@ import axiosInstance from '@/lib/axios';
 import type { ApiError, ChatMessage } from './types';
 import { v4 as uuidv4 } from 'uuid';
 
-function getOrCreateSessionId(): string {
-  // Prefer persisted session to retain chat context across reloads
-  const KEY = 'chat_session_id';
-  const existing = typeof window !== 'undefined' ? localStorage.getItem(KEY) : null;
-  if (existing) return existing;
-  // UUID for session_id per instruction
-  const id =
-    typeof crypto !== 'undefined' && 'randomUUID' in crypto
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  if (typeof window !== 'undefined') localStorage.setItem(KEY, id);
-  return id;
-}
+// SessionId is now provided by backend via Next.js /api/session route
 
 // Removed welcome message generation; chat starts clean without auto assistant text.
 
@@ -35,7 +23,6 @@ export default function Chat() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [progressMessage, setProgressMessage] = useState<string>('Kairo is thinking...');
-  const sessionId = useMemo(() => getOrCreateSessionId(), []);
   // Hardcoded user for demo/presentation
   const userId = uuidv4(); // TODO: replace with real auth user id
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -43,6 +30,7 @@ export default function Chat() {
 
   // Fetch session data from backend for personalization
   const { data: sessionData, isLoading: sessionLoading } = useSession();
+  const sessionId = sessionData?.sessionId;
 
   const sendMutation = useSendChatMessageMutation();
 
@@ -230,6 +218,20 @@ export default function Chat() {
   // Helper function to send a message programmatically
   const sendMessage = (text: string) => {
     if (!text.trim()) return;
+
+    // Guard: require a valid server-issued sessionId
+    if (!sessionId || !sessionData?.valid) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID?.() ?? `${Date.now()}-err`,
+          role: 'system',
+          content:
+            'Session not ready. Please open the app via the GHL menu to establish a session.',
+        },
+      ]);
+      return;
+    }
 
     // append user message locally
     setMessages((prev) => [

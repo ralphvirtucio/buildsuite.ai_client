@@ -9,6 +9,8 @@ export interface SessionData {
   timezone?: string;
   locationId: string;
   createdAt: string;
+  // Backend-issued session identifier (from httpOnly cookie)
+  sessionId?: string;
 }
 
 export interface SessionError {
