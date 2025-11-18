@@ -10,8 +10,13 @@ import { useSession } from '../auth/hooks';
 import { CapabilitiesCard } from './components/capabilities-card';
 import { PillPrompts } from './components/pill-prompts';
 import axiosInstance from '@/lib/axios';
-import type { ApiError, ChatMessage } from './types';
-import { v4 as uuidv4 } from 'uuid';
+import type {
+  ApiError,
+  ChatMessage,
+  ConversationDetailResponse,
+  ConversationSummary,
+} from './types';
+import { SessionSelectorModal } from './components/session-selector-modal';
 
 // SessionId is now provided by backend via Next.js /api/session route
 
@@ -23,18 +28,76 @@ export default function Chat() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [progressMessage, setProgressMessage] = useState<string>('Kairo is thinking...');
-  // Hardcoded user for demo/presentation
-  const userId = uuidv4(); // TODO: replace with real auth user id
+  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
+  const [isSessionSelectorOpen, setIsSessionSelectorOpen] = useState(false);
+  const [isLoadingConversations, setIsLoadingConversations] = useState(false);
+  const [conversationError, setConversationError] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   // No auto-injected welcome; messages start empty until user interacts
 
   // Fetch session data from backend for personalization
   const { data: sessionData, isLoading: sessionLoading } = useSession();
-  const sessionId = sessionData?.sessionId;
+
+  const baseSessionId = sessionData?.sessionId;
+  const buildsuiteUserId = sessionData?.buildsuite_user_id ?? null;
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(baseSessionId ?? null);
 
   const sendMutation = useSendChatMessageMutation();
 
   // Removed auto-welcome effect to avoid pre-filling assistant message
+  // Dev banner for clarity
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'production') {
+      // eslint-disable-next-line no-console
+      console.warn('[Dev] Auth bypass active: using mock session');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (sessionData?.sessionId && !activeSessionId) {
+      setActiveSessionId(sessionData.sessionId);
+    }
+  }, [sessionData?.sessionId, activeSessionId]);
+
+  useEffect(() => {
+    if (!sessionData?.valid || !buildsuiteUserId) {
+      return;
+    }
+    let cancelled = false;
+
+    const fetchConversations = async () => {
+      try {
+        setIsLoadingConversations(true);
+        setConversationError(null);
+        const res = await axiosInstance.get<{ items: ConversationSummary[] }>('/conversations', {
+          params: {
+            user_id: buildsuiteUserId,
+            limit: 20,
+          },
+        });
+        if (cancelled) return;
+        const items = res.data?.items ?? [];
+        setConversations(items);
+        if (items.length > 0) {
+          setIsSessionSelectorOpen(true);
+        }
+      } catch {
+        if (!cancelled) {
+          setConversationError('Failed to load your sessions');
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingConversations(false);
+        }
+      }
+    };
+
+    fetchConversations();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionData?.valid, buildsuiteUserId]);
 
   async function sendStream(payload: {
     message: string;
@@ -219,8 +282,8 @@ export default function Chat() {
   const sendMessage = (text: string) => {
     if (!text.trim()) return;
 
-    // Guard: require a valid server-issued sessionId
-    if (!sessionId || !sessionData?.valid) {
+    // Guard: only enforce in production
+    if (process.env.NODE_ENV === 'production' && (!activeSessionId || !sessionData?.valid)) {
       setMessages((prev) => [
         ...prev,
         {
@@ -239,10 +302,13 @@ export default function Chat() {
       { id: crypto.randomUUID?.() ?? `${Date.now()}-u`, role: 'user', content: text },
     ]);
 
+    const effectiveSessionId =
+      activeSessionId ?? (process.env.NODE_ENV !== 'production' ? 'dev-session' : '');
+
     const payload = {
       message: text,
-      session_id: sessionId,
-      user_id: userId,
+      session_id: effectiveSessionId,
+      user_id: buildsuiteUserId ?? 'dev-user',
       conversation_history: messages.map((m) => ({ role: m.role, content: m.content })),
       stream: false,
     };
@@ -313,12 +379,77 @@ export default function Chat() {
     el.scrollTop = el.scrollHeight;
   }, [messages, isStreaming]);
 
+  const handleResumeConversation = async (conversationId: string) => {
+    if (!conversationId) return;
+    try {
+      const summary = conversations.find((c) => c.id === conversationId);
+      if (summary?.session_id) {
+        setActiveSessionId(summary.session_id);
+      }
+      const res = await axiosInstance.get<ConversationDetailResponse>(
+        `/conversations/${encodeURIComponent(conversationId)}`,
+        {
+          params: {
+            message_limit: 100,
+          },
+        },
+      );
+      const detail = res.data;
+      const mappedMessages: ChatMessage[] = detail.messages.map((m) => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+      }));
+      setMessages(mappedMessages);
+      setConversationError(null);
+    } catch {
+      setConversationError('Failed to load conversation messages');
+    }
+  };
+
+  const handleStartNewSession = async () => {
+    try {
+      if (!sessionData?.locationId) {
+        setConversationError('Cannot create a new session: missing location information.');
+        return;
+      }
+
+      const res = await axiosInstance.post('/auth/create_session', {
+        location_id: sessionData.locationId,
+        metadata: {
+          source: 'chat_modal',
+        },
+      });
+
+      const newSessionId: string | undefined =
+        res.data?.session_id ?? res.data?.sessionId ?? res.data?.data?.session_id;
+
+      if (newSessionId) {
+        setActiveSessionId(newSessionId);
+      }
+
+      setMessages([]);
+      setConversationError(null);
+    } catch {
+      setConversationError('Failed to create a new session');
+    }
+  };
+
   return (
     <div className="mx-auto flex h-screen w-full max-w-3xl flex-col px-4 py-8">
-      <div className="mb-4 flex w-full items-center justify-end">
+      <div className="mb-4 flex w-full items-center justify-between">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsSessionSelectorOpen(true)}
+          disabled={isLoadingConversations}
+        >
+          Sessions
+        </Button>
         <ThemeToggle />
       </div>
       <div className="flex flex-1 flex-col w-full overflow-hidden">
+        {conversationError && <div className="mb-2 text-xs text-red-500">{conversationError}</div>}
         {messages.length === 0 && sessionLoading ? (
           /* Loading state - waiting for session data */
           <div className="flex flex-1 items-center justify-center">
@@ -490,6 +621,13 @@ export default function Chat() {
           </form>
         </div>
       </div>
+      <SessionSelectorModal
+        isOpen={isSessionSelectorOpen}
+        onClose={() => setIsSessionSelectorOpen(false)}
+        conversations={conversations}
+        onResume={handleResumeConversation}
+        onStartNew={handleStartNewSession}
+      />
     </div>
   );
 }

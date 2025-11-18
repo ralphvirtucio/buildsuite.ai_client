@@ -38,6 +38,32 @@ export interface ChatMessage {
   };
 }
 
+export interface ConversationSummary {
+  id: string;
+  session_id: string;
+  user_id?: string | null;
+  channel: string;
+  status: string;
+  created_at: string;
+  updated_at?: string | null;
+  expires_at?: string | null;
+}
+
+export interface ConversationMessage {
+  id: string;
+  conversation_id: string;
+  role: ChatRole;
+  content: string;
+  agent_name?: string | null;
+  metadata?: unknown;
+  created_at: string;
+}
+
+export interface ConversationDetailResponse {
+  conversation: ConversationSummary;
+  messages: ConversationMessage[];
+}
+
 // SSE Event Types from kairo_brain streaming
 export type SSEEventType = 'start' | 'tool' | 'agent' | 'delta' | 'final' | 'error';
 
