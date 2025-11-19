@@ -11,7 +11,9 @@ import {
   Users,
   Mail,
   MessageSquare,
-  Zap
+  Zap,
+  Search,
+  FileText,
 } from 'lucide-react';
 import { useSession } from '../../auth/hooks';
 
@@ -45,6 +47,10 @@ interface ToolCategory {
   icon: React.ReactNode;
 }
 
+interface CapabilitiesCardProps {
+  onSkipIntro?: () => void;
+}
+
 /**
  * CapabilitiesCard Component
  *
@@ -53,7 +59,7 @@ interface ToolCategory {
  *
  * Automatically disappears after user sends first message.
  */
-export function CapabilitiesCard() {
+export function CapabilitiesCard({ onSkipIntro }: CapabilitiesCardProps) {
   const { data: session, isLoading } = useSession();
 
   const greeting = useMemo(() => {
@@ -95,6 +101,16 @@ export function CapabilitiesCard() {
       description: 'Cost estimates, project quotes',
       icon: <DollarSign className="h-4 w-4" />,
     },
+    {
+      name: 'Research Agent',
+      description: 'Web research, competitive analysis, market trends',
+      icon: <Search className="h-4 w-4" />,
+    },
+    {
+      name: 'Writer Agent',
+      description: 'Client emails, proposal sections, marketing copy',
+      icon: <FileText className="h-4 w-4" />,
+    },
   ];
 
   const toolCategories: ToolCategory[] = [
@@ -118,27 +134,41 @@ export function CapabilitiesCard() {
       tools: ['Trigger workflows', 'Research', 'Job posting'],
       icon: <Zap className="h-3.5 w-3.5 text-primary" />,
     },
+    {
+      category: 'Research & Content',
+      tools: ['Research reports', 'Writer-ready briefs', 'Client-facing copy'],
+      icon: <Search className="h-3.5 w-3.5 text-primary" />,
+    },
   ];
 
   return (
     <div className="flex flex-1 justify-center items-center animate-in fade-in-0 zoom-in-95 duration-500">
-      <div className="w-full max-w-md rounded-lg border bg-background shadow-md p-6 space-y-6">
+      <div className="w-full max-w-md rounded-lg border bg-background shadow-md p-4 space-y-4">
         {/* Header */}
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-sm">
-            <Bot className="h-7 w-7" />
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-sm">
+              <Bot className="h-6 w-6" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-foreground leading-snug">BuildSuite AI</h2>
+              <p className="text-[11px] text-muted-foreground leading-snug">Powered by Kairo</p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-lg font-bold text-foreground">BuildSuite AI</h2>
-            <p className="text-xs text-muted-foreground">Powered by Kairo</p>
-          </div>
+          <button
+            type="button"
+            onClick={onSkipIntro}
+            className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Skip intro
+          </button>
         </div>
 
         {/* Personalized Greeting */}
         <div>
-          <p className="text-base font-medium text-foreground mb-2">{greeting}</p>
-          <p className="text-sm text-muted-foreground">
-            I'm Kairo, your AI assistant. I can help you with:
+          <p className="text-sm font-medium text-foreground mb-1 leading-snug">{greeting}</p>
+          <p className="text-xs text-muted-foreground leading-snug">
+            I&apos;m Kairo, your AI assistant. Here&apos;s what I can help with today:
           </p>
         </div>
 
@@ -151,7 +181,7 @@ export function CapabilitiesCard() {
             {agents.map((agent) => (
               <div
                 key={agent.name}
-                className="flex items-start gap-2 p-2 rounded-md bg-muted/50 border border-border/50"
+                className="flex items-start gap-2 p-2 rounded-md bg-muted/40 border border-border/40"
               >
                 <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
                 <div className="flex items-center gap-1.5 min-w-0 flex-1">

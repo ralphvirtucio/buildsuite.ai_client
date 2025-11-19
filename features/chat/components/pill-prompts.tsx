@@ -2,7 +2,15 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, Briefcase, TrendingUp, Settings, DollarSign } from 'lucide-react';
+import {
+  ChevronDown,
+  Briefcase,
+  TrendingUp,
+  Settings,
+  DollarSign,
+  Search,
+  FileText,
+} from 'lucide-react';
 
 interface AgentPrompt {
   agent: string;
@@ -64,6 +72,30 @@ const agentPrompts: AgentPrompt[] = [
       'Get opportunities for quotes',
       'Pipeline metrics',
       'Recent project estimates',
+    ],
+  },
+  {
+    agent: 'research',
+    icon: <Search className="h-3.5 w-3.5" />,
+    label: 'Research',
+    color: 'from-sky-500 to-sky-600',
+    prompts: [
+      'Research a competitor',
+      'Summarize latest market trends',
+      'Find industry benchmarks for roofing',
+      'Create a research brief for a client',
+    ],
+  },
+  {
+    agent: 'writer',
+    icon: <FileText className="h-3.5 w-3.5" />,
+    label: 'Writer',
+    color: 'from-pink-500 to-pink-600',
+    prompts: [
+      'Draft a follow-up email from research',
+      'Write a proposal introduction',
+      'Turn research notes into a client email',
+      'Polish this draft',
     ],
   },
 ];

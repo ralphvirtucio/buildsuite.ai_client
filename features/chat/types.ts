@@ -17,6 +17,8 @@ export interface TriggerResponse {
   session_id?: string;
   result?: string;
   error?: string;
+  format?: 'plain' | 'markdown';
+  metadata?: Record<string, unknown>;
   timestamp: string; // ISO datetime
 }
 
@@ -32,9 +34,11 @@ export interface ChatMessage {
   id: string;
   role: ChatRole;
   content: string;
+  format?: 'plain' | 'markdown';
   metadata?: {
     toolCalls?: Array<{ name: string; status: 'completed' | 'failed'; error?: string }>;
     agentCalls?: Array<{ name: string; status: 'completed' | 'failed'; error?: string }>;
+    isResearchReport?: boolean;
   };
 }
 
@@ -47,6 +51,7 @@ export interface ConversationSummary {
   created_at: string;
   updated_at?: string | null;
   expires_at?: string | null;
+   title?: string | null;
 }
 
 export interface ConversationMessage {
@@ -55,7 +60,9 @@ export interface ConversationMessage {
   role: ChatRole;
   content: string;
   agent_name?: string | null;
-  metadata?: unknown;
+  metadata?: Record<string, unknown> | null;
+  is_research_report?: boolean;
+  format?: 'plain' | 'markdown';
   created_at: string;
 }
 
@@ -74,4 +81,6 @@ export interface SSEEvent {
   status?: 'completed' | 'failed';
   error?: string;
   text?: string;
+   format?: 'plain' | 'markdown';
+   is_research_report?: boolean;
 }

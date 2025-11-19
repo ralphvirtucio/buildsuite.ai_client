@@ -80,8 +80,30 @@ Backend tasks live under `kairo_brain/task.md`.
 
 ## Future Enhancements (Nice to Have)
 
-- [ ] Allow mid-chat session switching (via header button) without page reload.
+- [x] Allow mid-chat session switching (via header button) without page reload.
 - [ ] Display more detailed summaries in the session list:
   - [ ] Last message snippet.
   - [ ] Dominant agent involved (e.g., sales, research).
 - [ ] Add pagination/infinite scroll for conversations if the list grows large.
+- [x] Add ability to delete individual conversations from the session selector UI.
+
+---
+
+## Research Agent – Markdown Rendering & Download
+
+- [x] Add a `MarkdownMessage` component for rendering assistant messages in markdown (headings, lists, links).
+- [x] Extend `ChatMessage` type to support a `format` or `contentType` field (e.g., `'plain' | 'markdown'`).
+- [x] Update chat rendering to use `MarkdownMessage` for research reports (or all assistant messages).
+- [x] Ensure markdown links open in a new tab and are clearly styled as clickable.
+- [x] Add a “Download .md” action for research report messages that:
+  - [x] Generates a client-side `.md` file from the message content.
+  - [x] Uses a sensible filename (e.g., `research-report-{date}.md`).
+
+---
+
+## Research & Writer Agents – Pill Prompts & Capabilities Card
+
+- [x] Review Research & Writer agent backend docs and state to understand available capabilities.
+- [x] Extend `PillPrompts` with Research and Writer agent quick-action pills.
+- [x] Update `CapabilitiesCard` to list Research and Writer under Specialized Agents and reflect their key capabilities.
+- [ ] Manual QA: verify new pills and capabilities card content on desktop and mobile (no overlap or overflow issues).

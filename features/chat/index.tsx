@@ -3,7 +3,7 @@
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { Paperclip, Send, Bot, Copy, Check } from 'lucide-react';
+import { Paperclip, Send, Bot, Copy, Check, MessageSquare, Download } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useSendChatMessageMutation } from './api';
 import { useSession } from '../auth/hooks';
@@ -17,6 +17,7 @@ import type {
   ConversationSummary,
 } from './types';
 import { SessionSelectorModal } from './components/session-selector-modal';
+import { MarkdownMessage } from './components/markdown-message';
 
 // SessionId is now provided by backend via Next.js /api/session route
 
@@ -30,8 +31,10 @@ export default function Chat() {
   const [progressMessage, setProgressMessage] = useState<string>('Kairo is thinking...');
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [isSessionSelectorOpen, setIsSessionSelectorOpen] = useState(false);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [isLoadingConversations, setIsLoadingConversations] = useState(false);
   const [conversationError, setConversationError] = useState<string | null>(null);
+   const [showCapabilitiesCard, setShowCapabilitiesCard] = useState(true);
   const listRef = useRef<HTMLDivElement | null>(null);
   // No auto-injected welcome; messages start empty until user interacts
 
@@ -59,44 +62,37 @@ export default function Chat() {
     }
   }, [sessionData?.sessionId, activeSessionId]);
 
+  const refreshConversations = async (autoOpenIfHasItems: boolean = false) => {
+    if (!sessionData?.valid || !buildsuiteUserId) {
+      return;
+    }
+    try {
+      setIsLoadingConversations(true);
+      setConversationError(null);
+      const res = await axiosInstance.get<{ items: ConversationSummary[] }>('/conversations', {
+        params: {
+          user_id: buildsuiteUserId,
+          limit: 20,
+        },
+      });
+      const items = res.data?.items ?? [];
+      setConversations(items);
+      if (autoOpenIfHasItems && items.length > 0) {
+        setIsSessionSelectorOpen(true);
+      }
+    } catch {
+      setConversationError('Failed to load your sessions');
+    } finally {
+      setIsLoadingConversations(false);
+    }
+  };
+
   useEffect(() => {
     if (!sessionData?.valid || !buildsuiteUserId) {
       return;
     }
-    let cancelled = false;
-
-    const fetchConversations = async () => {
-      try {
-        setIsLoadingConversations(true);
-        setConversationError(null);
-        const res = await axiosInstance.get<{ items: ConversationSummary[] }>('/conversations', {
-          params: {
-            user_id: buildsuiteUserId,
-            limit: 20,
-          },
-        });
-        if (cancelled) return;
-        const items = res.data?.items ?? [];
-        setConversations(items);
-        if (items.length > 0) {
-          setIsSessionSelectorOpen(true);
-        }
-      } catch {
-        if (!cancelled) {
-          setConversationError('Failed to load your sessions');
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoadingConversations(false);
-        }
-      }
-    };
-
-    fetchConversations();
-
-    return () => {
-      cancelled = true;
-    };
+    // Initial load: auto-open only if conversations exist
+    void refreshConversations(true);
   }, [sessionData?.valid, buildsuiteUserId]);
 
   async function sendStream(payload: {
@@ -154,6 +150,7 @@ export default function Chat() {
               id: newMsgId,
               role: 'assistant',
               content: '',
+              format: 'markdown',
               metadata: { toolCalls: [], agentCalls: [] },
             },
           ];
@@ -184,6 +181,8 @@ export default function Chat() {
                 error?: string;
                 text?: string;
                 message?: string;
+                format?: 'plain' | 'markdown';
+                is_research_report?: boolean;
               };
 
               if (evt.type === 'start') {
@@ -233,7 +232,11 @@ export default function Chat() {
                     next[idx] = {
                       ...existing,
                       content: (existing.content || '') + textChunk,
-                      metadata: { toolCalls: [...toolCalls], agentCalls: [...agentCalls] },
+                      metadata: {
+                        ...(existing.metadata || {}),
+                        toolCalls: [...toolCalls],
+                        agentCalls: [...agentCalls],
+                      },
                     };
                   }
                   return next;
@@ -250,7 +253,14 @@ export default function Chat() {
                   if (idx !== -1) {
                     next[idx] = {
                       ...next[idx],
-                      metadata: { toolCalls: [...toolCalls], agentCalls: [...agentCalls] },
+                      format: evt.format || next[idx].format || 'markdown',
+                      metadata: {
+                        ...(next[idx].metadata || {}),
+                        toolCalls: [...toolCalls],
+                        agentCalls: [...agentCalls],
+                        isResearchReport:
+                          evt.is_research_report ?? next[idx].metadata?.isResearchReport,
+                      },
                     };
                   }
                   return next;
@@ -276,6 +286,19 @@ export default function Chat() {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const downloadMarkdown = (content: string) => {
+    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const date = new Date().toISOString().slice(0, 10);
+    link.download = `research-report-${date}.md`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   // Helper function to send a message programmatically
@@ -313,6 +336,8 @@ export default function Chat() {
       stream: false,
     };
 
+    console.log(payload, 'sendingMessages');
+
     // Prefer streaming; fallback to non-stream mutation if it fails
     setIsStreaming(true);
     sendStream(payload).catch((err) => {
@@ -321,6 +346,10 @@ export default function Chat() {
       sendMutation.mutate(payload, {
         onSuccess: (data) => {
           const assistantText = data.result ?? data.message ?? 'No response';
+          const format = data.format ?? 'markdown';
+          const isResearchReport =
+            (data.metadata as { is_research_report?: boolean } | undefined)?.is_research_report ===
+            true;
           // Update existing empty assistant message if it exists, otherwise add new one
           setMessages((prev) => {
             const lastMsg = prev[prev.length - 1];
@@ -330,6 +359,11 @@ export default function Chat() {
               updated[updated.length - 1] = {
                 ...lastMsg,
                 content: assistantText,
+                format,
+                metadata: {
+                  ...(lastMsg.metadata || {}),
+                  isResearchReport,
+                },
               };
               return updated;
             }
@@ -340,6 +374,8 @@ export default function Chat() {
                 id: crypto.randomUUID?.() ?? `${Date.now()}-a`,
                 role: 'assistant',
                 content: assistantText,
+                format,
+                metadata: isResearchReport ? { isResearchReport } : undefined,
               },
             ];
           });
@@ -382,6 +418,7 @@ export default function Chat() {
   const handleResumeConversation = async (conversationId: string) => {
     if (!conversationId) return;
     try {
+      setActiveConversationId(conversationId);
       const summary = conversations.find((c) => c.id === conversationId);
       if (summary?.session_id) {
         setActiveSessionId(summary.session_id);
@@ -395,12 +432,26 @@ export default function Chat() {
         },
       );
       const detail = res.data;
-      const mappedMessages: ChatMessage[] = detail.messages.map((m) => ({
-        id: m.id,
-        role: m.role,
-        content: m.content,
-      }));
+      const mappedMessages: ChatMessage[] = detail.messages.map((m) => {
+        const meta = (m.metadata as Record<string, unknown> | null) || {};
+        const isResearchReport =
+          m.is_research_report === true ||
+          (meta.is_research_report as boolean | undefined) === true ||
+          (meta.isResearchReport as boolean | undefined) === true;
+        const format =
+          (m.format as 'plain' | 'markdown' | undefined) ||
+          (meta.format as 'plain' | 'markdown' | undefined) ||
+          'markdown';
+        return {
+          id: m.id,
+          role: m.role,
+          content: m.content,
+          format,
+          metadata: isResearchReport ? { isResearchReport } : undefined,
+        };
+      });
       setMessages(mappedMessages);
+      setInput('');
       setConversationError(null);
     } catch {
       setConversationError('Failed to load conversation messages');
@@ -418,6 +469,7 @@ export default function Chat() {
         location_id: sessionData.locationId,
         metadata: {
           source: 'chat_modal',
+          buildsuite_user_id: buildsuiteUserId,
         },
       });
 
@@ -429,22 +481,46 @@ export default function Chat() {
       }
 
       setMessages([]);
+      setActiveConversationId(null);
+      setInput('');
       setConversationError(null);
     } catch {
       setConversationError('Failed to create a new session');
     }
   };
 
+  const handleDeleteConversation = async (conversationId: string) => {
+    if (!conversationId) return;
+    if (!buildsuiteUserId) {
+      setConversationError('Cannot delete conversation: missing user information.');
+      return;
+    }
+    try {
+      await axiosInstance.delete(`/conversations/${encodeURIComponent(conversationId)}`, {
+        params: { user_id: buildsuiteUserId },
+      });
+      setConversations((prev) => prev.filter((c) => c.id !== conversationId));
+      setConversationError(null);
+    } catch {
+      setConversationError('Failed to delete conversation');
+    }
+  };
+
   return (
-    <div className="mx-auto flex h-screen w-full max-w-3xl flex-col px-4 py-8">
+    <div className="mx-auto flex h-screen w-full max-w-5xl flex-col px-4 py-8">
       <div className="mb-4 flex w-full items-center justify-between">
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setIsSessionSelectorOpen(true)}
+          onClick={() => {
+            void refreshConversations(false);
+            setIsSessionSelectorOpen(true);
+          }}
           disabled={isLoadingConversations}
+          className="inline-flex items-center gap-2"
         >
-          Sessions
+          <MessageSquare className="h-4 w-4" />
+          <span>Conversations</span>
         </Button>
         <ThemeToggle />
       </div>
@@ -464,8 +540,13 @@ export default function Chat() {
             </div>
           </div>
         ) : messages.length === 0 ? (
-          /* Empty state - Show capabilities card */
-          <CapabilitiesCard />
+          /* Empty state - Show capabilities card (can be dismissed) */
+          showCapabilitiesCard ? (
+            <CapabilitiesCard onSkipIntro={() => setShowCapabilitiesCard(false)} />
+          ) : (
+            // Spacer to keep pills + input anchored to bottom when intro is dismissed
+            <div className="flex-1" />
+          )
         ) : (
           <div
             ref={listRef}
@@ -498,9 +579,7 @@ export default function Chat() {
                             : 'rounded-md bg-muted text-muted-foreground px-4 py-2'
                         }
                       >
-                        <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                          {m.content}
-                        </div>
+                        <MarkdownMessage content={m.content} />
 
                         {/* Timestamp */}
                         <div
@@ -554,6 +633,20 @@ export default function Chat() {
                                 </span>
                               ))}
                             </div>
+                          </div>
+                        ) : null}
+                        {m.role === 'assistant' && m.metadata?.isResearchReport ? (
+                          <div className="mt-3">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="inline-flex items-center gap-1 text-xs"
+                              onClick={() => downloadMarkdown(m.content)}
+                            >
+                              <Download className="h-3 w-3" />
+                              <span>Download .md</span>
+                            </Button>
                           </div>
                         ) : null}
                       </div>
@@ -624,9 +717,11 @@ export default function Chat() {
       <SessionSelectorModal
         isOpen={isSessionSelectorOpen}
         onClose={() => setIsSessionSelectorOpen(false)}
+        activeConversationId={activeConversationId}
         conversations={conversations}
         onResume={handleResumeConversation}
         onStartNew={handleStartNewSession}
+        onDelete={handleDeleteConversation}
       />
     </div>
   );
