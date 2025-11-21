@@ -9,7 +9,7 @@ import { useSendChatMessageMutation } from './api';
 import { useSession } from '../auth/hooks';
 import { CapabilitiesCard } from './components/capabilities-card';
 import { PillPrompts } from './components/pill-prompts';
-import axiosInstance from '@/lib/axios';
+import axiosInstance, { resolveApiBaseUrl } from '@/lib/axios';
 import type {
   ApiError,
   ChatMessage,
@@ -69,12 +69,16 @@ export default function Chat() {
     try {
       setIsLoadingConversations(true);
       setConversationError(null);
-      const res = await axiosInstance.get<{ items: ConversationSummary[] }>('/conversations', {
-        params: {
-          user_id: buildsuiteUserId,
-          limit: 20,
+      // Hardcoded HTTPS base to validate mixed-content fix (override env/baseURL just here)
+      const res = await axiosInstance.get<{ items: ConversationSummary[] }>(
+        'https://api.buildsuite.ai/api/v1/conversations',
+        {
+          params: {
+            user_id: buildsuiteUserId,
+            limit: 20,
+          },
         },
-      });
+      );
       const items = res.data?.items ?? [];
       setConversations(items);
       if (autoOpenIfHasItems && items.length > 0) {
@@ -102,10 +106,7 @@ export default function Chat() {
     conversation_history: Array<{ role: string; content: string }>;
     init?: boolean;
   }) {
-    const base =
-      axiosInstance.defaults.baseURL ||
-      process.env.NEXT_PUBLIC_API_ENDPOINT_URL ||
-      'http://localhost:8000/api/v1';
+    const base = resolveApiBaseUrl();
     const url = `${base}/triggers/chat`;
 
     // Ensure demo token exists

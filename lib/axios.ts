@@ -5,8 +5,21 @@ import {
   type UseMutationResult,
 } from '@tanstack/react-query';
 
+const API_BASE_FALLBACK = 'http://localhost:8000/api/v1';
+
+export const resolveApiBaseUrl = () => {
+  const base = process.env.NEXT_PUBLIC_API_ENDPOINT_URL || API_BASE_FALLBACK;
+
+  // Avoid mixed-content by upgrading to https when the page is served over https
+  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && base.startsWith('http://')) {
+    return base.replace(/^http:\/\//, 'https://');
+  }
+
+  return base;
+};
+
 const axiosInstance = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_ENDPOINT_URL || 'http://localhost:8000/api/v1',
+  baseURL: resolveApiBaseUrl(),
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
