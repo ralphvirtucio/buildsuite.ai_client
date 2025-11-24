@@ -11,10 +11,10 @@ export async function GET() {
         firstName: 'Dev',
         lastName: 'User',
         timezone: 'UTC',
-        locationId: 'U7AFyZAqNOelHl9nkf8N',
+        locationId: 'IifYfP2B2NUaoDPdsTTa',
         buildsuite_user_id: '067d5e07-c01f-4d62-b174-d7eaaac2a0cd',
         createdAt: new Date().toISOString(),
-        sessionId: 'dev-session',
+        sessionId: 'dev_session',
       });
     }
 

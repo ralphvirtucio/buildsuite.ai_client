@@ -69,16 +69,12 @@ export default function Chat() {
     try {
       setIsLoadingConversations(true);
       setConversationError(null);
-      // Hardcoded HTTPS base to validate mixed-content fix (override env/baseURL just here)
-      const res = await axiosInstance.get<{ items: ConversationSummary[] }>(
-        'https://api.buildsuite.ai/api/v1/conversations',
-        {
-          params: {
-            user_id: buildsuiteUserId,
-            limit: 20,
-          },
+      const res = await axiosInstance.get<{ items: ConversationSummary[] }>('/conversations', {
+        params: {
+          user_id: buildsuiteUserId,
+          limit: 20,
         },
-      );
+      });
       const items = res.data?.items ?? [];
       setConversations(items);
       if (autoOpenIfHasItems && items.length > 0) {

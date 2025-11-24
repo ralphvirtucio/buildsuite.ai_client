@@ -31,12 +31,10 @@ const agentPrompts: AgentPrompt[] = [
     label: 'Sales',
     color: 'from-blue-500 to-blue-600',
     prompts: [
-      'Show recent leads',
-      'Pipeline summary',
-      'Score leads',
-      'Find contact by email',
-      'Create new contact',
-      'Get opportunities',
+      'Show warm leads for follow-up',
+      'Find contact by email or phone',
+      'Summarize pipeline health',
+      'Create a new contact from this info',
     ],
   },
   {
@@ -45,10 +43,10 @@ const agentPrompts: AgentPrompt[] = [
     label: 'Marketing',
     color: 'from-purple-500 to-purple-600',
     prompts: [
-      'Campaign analytics',
-      'Trigger marketing workflow',
-      'Research competitors',
-      'Get contact count',
+      'Campaign performance for the last 7 days',
+      'Find best-performing channel this week',
+      'Trigger nurture workflow for this contact',
+      'Research competitor positioning',
     ],
   },
   {
@@ -57,10 +55,10 @@ const agentPrompts: AgentPrompt[] = [
     label: 'Operations',
     color: 'from-green-500 to-green-600',
     prompts: [
-      "Today's tasks and schedule",
-      'Project breakdown',
-      'Trigger automation workflow',
-      'Add contact to workflow',
+      "Today's tasks by project or location",
+      'Schedule crew for this job',
+      'Break down tasks for this project',
+      'Trigger automation workflow for this contact',
     ],
   },
   {
@@ -69,9 +67,10 @@ const agentPrompts: AgentPrompt[] = [
     label: 'Estimating',
     color: 'from-orange-500 to-orange-600',
     prompts: [
-      'Get opportunities for quotes',
-      'Pipeline metrics',
-      'Recent project estimates',
+      'Opportunities needing quotes',
+      'Draft a rough estimate for this project',
+      'Material cost comparison',
+      'List recent project estimates',
     ],
   },
   {
@@ -80,10 +79,10 @@ const agentPrompts: AgentPrompt[] = [
     label: 'Research',
     color: 'from-sky-500 to-sky-600',
     prompts: [
-      'Research a competitor',
-      'Summarize latest market trends',
-      'Find industry benchmarks for roofing',
-      'Create a research brief for a client',
+      'Research a competitor and cite sources',
+      'Summarize latest market trends for roofing',
+      'Find industry benchmarks for conversion rates',
+      'Create a research brief for this client',
     ],
   },
   {
@@ -93,9 +92,9 @@ const agentPrompts: AgentPrompt[] = [
     color: 'from-pink-500 to-pink-600',
     prompts: [
       'Draft a follow-up email from research',
-      'Write a proposal introduction',
+      'Write a proposal introduction for this project',
       'Turn research notes into a client email',
-      'Polish this draft',
+      'Polish this draft and keep it on-brand',
     ],
   },
 ];

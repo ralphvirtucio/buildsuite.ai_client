@@ -45,6 +45,10 @@
    - No changes to `/api/v1/triggers/chat` or agent routing are required for this UI work.
    - Rely on the existing orchestrator/agent selection logic; the UI only provides clearer entry points into those flows.
 
+## Latest Adjustments
+
+- Refreshed all pill prompt lists to align with the active Kairo agents (sales, marketing, operations, estimating, research, writer) and make the call-to-actions clearer (e.g., “Show warm leads for follow-up”, “Trigger nurture workflow for this contact”, “Research a competitor and cite sources”, “Polish this draft and keep it on-brand”).
+
 ## Testing & Verification (Manual)
 
 1. **Pill Prompts**
@@ -63,4 +67,3 @@
 3. **Regression Checks**
    - Send a few normal questions to ensure the card still hides after the first message.
    - Confirm the existing Sales/Marketing/Operations/Estimating pills still behave as before.
-

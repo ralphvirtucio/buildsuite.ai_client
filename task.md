@@ -106,4 +106,5 @@ Backend tasks live under `kairo_brain/task.md`.
 - [x] Review Research & Writer agent backend docs and state to understand available capabilities.
 - [x] Extend `PillPrompts` with Research and Writer agent quick-action pills.
 - [x] Update `CapabilitiesCard` to list Research and Writer under Specialized Agents and reflect their key capabilities.
+- [x] Refresh pill prompt wording to match live Kairo agent capabilities and clearer CTAs.
 - [ ] Manual QA: verify new pills and capabilities card content on desktop and mobile (no overlap or overflow issues).
