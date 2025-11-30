@@ -11,8 +11,8 @@ export async function GET() {
         firstName: 'Dev',
         lastName: 'User',
         timezone: 'UTC',
-        locationId: 'IifYfP2B2NUaoDPdsTTa',
-        buildsuite_user_id: '067d5e07-c01f-4d62-b174-d7eaaac2a0cd',
+        locationId: process.env.NEXT_PUBLIC_LOCATION_ID,
+        buildsuite_user_id: process.env.NEXT_PUBLIC_USER_ID,
         createdAt: new Date().toISOString(),
         sessionId: 'dev_session',
       });
