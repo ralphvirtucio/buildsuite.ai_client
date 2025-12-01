@@ -1,5 +1,5 @@
-import Chat from '@/features/chat';
+import { AppTabs } from '@/app/components/AppTabs';
 
 export default function Page() {
-  return <Chat />;
+  return <AppTabs />;
 }
