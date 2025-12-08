@@ -3,21 +3,6 @@ import { cookies } from 'next/headers';
 
 export async function GET() {
   try {
-    // Development: short-circuit with a mocked valid session
-    if (process.env.NODE_ENV !== 'production') {
-      return NextResponse.json({
-        valid: true,
-        companyName: 'BuildSuite (Dev)',
-        firstName: 'Dev',
-        lastName: 'User',
-        timezone: 'UTC',
-        locationId: process.env.NEXT_PUBLIC_LOCATION_ID,
-        buildsuite_user_id: process.env.NEXT_PUBLIC_USER_ID,
-        createdAt: new Date().toISOString(),
-        sessionId: 'dev_session',
-      });
-    }
-
     const cookieStore = await cookies();
     const cookie = cookieStore.get('session_id');
     const sessionId = cookie?.value;

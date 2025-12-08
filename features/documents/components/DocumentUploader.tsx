@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useUploadDocument } from '../api';
 import type { DocumentFileType } from '../types';
+import { DocumentStatusDialog } from './DocumentStatusDialog';
 
 interface DocumentUploaderProps {
   userId: string;
@@ -23,6 +24,8 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 export function DocumentUploader({ userId, sessionId }: DocumentUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
+  const [recentDocumentId, setRecentDocumentId] = useState<string | null>(null);
   const uploadMutation = useUploadDocument();
   const validateFile = (file: File): string | null => {
     // Check file type
@@ -54,6 +57,10 @@ export function DocumentUploader({ userId, sessionId }: DocumentUploaderProps) {
         {
           onError: (err) => {
             setError(err.message || 'Upload failed');
+          },
+          onSuccess: (res) => {
+            setRecentDocumentId(res.document.id);
+            setStatusDialogOpen(true);
           },
         },
       );
@@ -171,6 +178,13 @@ export function DocumentUploader({ userId, sessionId }: DocumentUploaderProps) {
           </p>
         </div>
       )}
+
+      <DocumentStatusDialog
+        open={statusDialogOpen}
+        onOpenChange={setStatusDialogOpen}
+        documentId={recentDocumentId}
+        userId={userId}
+      />
     </div>
   );
 }

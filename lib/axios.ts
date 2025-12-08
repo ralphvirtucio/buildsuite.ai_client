@@ -11,7 +11,11 @@ export const resolveApiBaseUrl = () => {
   const base = process.env.NEXT_PUBLIC_API_ENDPOINT_URL || API_BASE_FALLBACK;
 
   // Avoid mixed-content by upgrading to https when the page is served over https
-  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && base.startsWith('http://')) {
+  if (
+    typeof window !== 'undefined' &&
+    window.location.protocol === 'https:' &&
+    base.startsWith('http://')
+  ) {
     return base.replace(/^http:\/\//, 'https://');
   }
 
@@ -24,6 +28,7 @@ const axiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 });
 
 /**
@@ -70,22 +75,10 @@ export function useApiMutation<
  * }
  */
 
-// Request interceptor
-const DEMO_AUTH_FALLBACK = 'demo-development-token'; // TODO: replace when real auth is wired
-
 axiosInstance.interceptors.request.use(
   (config) => {
-    // Add auth token if available
-    try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      const bearer = token || DEMO_AUTH_FALLBACK;
-      if (bearer) {
-        config.headers.Authorization = `Bearer ${bearer}`;
-      }
-    } catch {
-      // no-op in SSR
-      config.headers.Authorization = `Bearer ${DEMO_AUTH_FALLBACK}`;
-    }
+    // Ensure cookies (session_id) are sent on API calls
+    config.withCredentials = true;
     return config;
   },
   (error) => {
@@ -99,12 +92,8 @@ axiosInstance.interceptors.response.use(
     return response;
   },
   (error) => {
-    // Handle common errors
-    if (error.response?.status === 401) {
-      // Handle unauthorized
-      localStorage.removeItem('token');
-      // Redirect to login or dispatch logout action
-    }
+    // console.log(error.response?.status);
+    // Let callers handle 401; no automatic redirect to keep tabs/UI stable
     return Promise.reject(error);
   },
 );

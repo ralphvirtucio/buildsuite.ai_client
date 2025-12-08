@@ -1,4 +1,5 @@
 export type DocumentStatus = 'uploading' | 'processing' | 'ready' | 'failed';
+export type DocumentVectorStatus = 'pending' | 'ready' | 'failed';
 export type DocumentFileType = 'pdf' | 'docx' | 'txt';
 
 export interface Document {
@@ -8,6 +9,8 @@ export interface Document {
   file_type: DocumentFileType;
   file_size: number; // bytes
   status: DocumentStatus;
+  vector_status?: DocumentVectorStatus;
+  error?: string | null;
   uploaded_by: string | null; // UUID - references users.id
   uploaded_at: string; // ISO datetime
   processed_at?: string | null;

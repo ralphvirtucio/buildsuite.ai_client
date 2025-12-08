@@ -34,7 +34,7 @@ export default function Chat() {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [isLoadingConversations, setIsLoadingConversations] = useState(false);
   const [conversationError, setConversationError] = useState<string | null>(null);
-   const [showCapabilitiesCard, setShowCapabilitiesCard] = useState(true);
+  const [showCapabilitiesCard, setShowCapabilitiesCard] = useState(true);
   const listRef = useRef<HTMLDivElement | null>(null);
   // No auto-injected welcome; messages start empty until user interacts
 
@@ -46,15 +46,6 @@ export default function Chat() {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(baseSessionId ?? null);
 
   const sendMutation = useSendChatMessageMutation();
-
-  // Removed auto-welcome effect to avoid pre-filling assistant message
-  // Dev banner for clarity
-  useEffect(() => {
-    if (process.env.NODE_ENV !== 'production') {
-      // eslint-disable-next-line no-console
-      console.warn('[Dev] Auth bypass active: using mock session');
-    }
-  }, []);
 
   useEffect(() => {
     if (sessionData?.sessionId && !activeSessionId) {
@@ -90,9 +81,9 @@ export default function Chat() {
   useEffect(() => {
     if (!sessionData?.valid || !buildsuiteUserId) {
       return;
+    } else {
+      void refreshConversations(true);
     }
-    // Initial load: auto-open only if conversations exist
-    void refreshConversations(true);
   }, [sessionData?.valid, buildsuiteUserId]);
 
   async function sendStream(payload: {
@@ -105,19 +96,21 @@ export default function Chat() {
     const base = resolveApiBaseUrl();
     const url = `${base}/triggers/chat`;
 
-    // Ensure demo token exists
-    const token = localStorage.getItem('token') || 'demo-development-token';
-    localStorage.setItem('token', token);
-
     const res = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Accept: 'text/event-stream',
-        Authorization: `Bearer ${token}`,
       },
+      credentials: 'include',
       body: JSON.stringify({ ...payload, stream: true }),
     });
+
+    if (res.status === 401) {
+      const authUrl = `${resolveApiBaseUrl()}/auth/ghl_auth`;
+      window.location.href = authUrl;
+      return;
+    }
 
     if (!res.ok) {
       throw new Error(`HTTP ${res.status}`);

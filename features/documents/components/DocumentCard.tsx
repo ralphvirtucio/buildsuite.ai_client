@@ -91,13 +91,25 @@ export function DocumentCard({
         </div>
 
         {/* Status Badge */}
-        <div className={cn(
-          "flex items-center gap-1.5 mt-3 text-xs font-medium",
-          statusConfig.color
-        )}>
-          <StatusIcon className="h-3.5 w-3.5" />
-          <span>{statusConfig.label}</span>
+        <div className="flex flex-wrap gap-3 mt-3 text-xs font-medium">
+          <div className={cn("flex items-center gap-1.5", statusConfig.color)}>
+            <StatusIcon className="h-3.5 w-3.5" />
+            <span>{statusConfig.label}</span>
+          </div>
+          {document.vector_status && (
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <span className="inline-flex h-2 w-2 rounded-full bg-muted-foreground" />
+              <span>Vector: {document.vector_status}</span>
+            </div>
+          )}
         </div>
+
+        {document.error && (
+          <p className="mt-2 text-xs text-destructive flex items-start gap-1.5">
+            <AlertCircle className="h-3.5 w-3.5" />
+            {document.error}
+          </p>
+        )}
       </CardContent>
 
       <CardFooter className="pt-0 flex gap-2">

@@ -8,6 +8,8 @@ import type {
   DocumentUploadResponse,
   DocumentListResponse,
   ApiError,
+  DocumentStatus,
+  DocumentVectorStatus,
 } from './types';
 
 // Upload document
@@ -33,6 +35,27 @@ export function useUploadDocument() {
     onSuccess: () => {
       // Invalidate documents list to refetch
       queryClient.invalidateQueries({ queryKey: ['documents'] });
+    },
+  });
+}
+
+export function useDocumentStatus(
+  documentId: string | null,
+  userId: string | null,
+  enabled: boolean,
+) {
+  return useQuery<{ id: string; status: DocumentStatus; vector_status?: DocumentVectorStatus; error?: string | null }, ApiError>({
+    queryKey: ['document-status', documentId],
+    queryFn: async () => {
+      const res = await axiosInstance.get(`/documents/${documentId}/status`, {
+        params: { user_id: userId },
+      });
+      return res.data;
+    },
+    enabled: enabled && !!documentId && !!userId,
+    refetchInterval: (data) => {
+      const terminal = data?.status === 'ready' || data?.status === 'failed';
+      return terminal ? false : 2000;
     },
   });
 }
