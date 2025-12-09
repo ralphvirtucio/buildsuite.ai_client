@@ -53,8 +53,9 @@ export function useDocumentStatus(
       return res.data;
     },
     enabled: enabled && !!documentId && !!userId,
-    refetchInterval: (data) => {
-      const terminal = data?.status === 'ready' || data?.status === 'failed';
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      const terminal = status === 'ready' || status === 'failed';
       return terminal ? false : 2000;
     },
   });
